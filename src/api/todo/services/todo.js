@@ -4,12 +4,13 @@ const { createCoreService } = require('@strapi/strapi').factories;
 const csv = require('csv-parser');
 const fs = require('fs');
 
-const uploadTasks = new Map();
+const uploadTasks = new Map(); // js Map - store in memory
+const activeSessions = new Map(); // track active sessions by IP/user
 
 module.exports = createCoreService('api::todo.todo', ({ strapi }) => ({
 
     // csv processing
-    async processCSVUpload(jobId, filePath) {
+    async processCSVUpload(jobId, filePath, sessionId) {
         const job = uploadTasks.get(jobId);
         const results = [];
 
@@ -33,7 +34,12 @@ module.exports = createCoreService('api::todo.todo', ({ strapi }) => ({
 
             job.status = 'completed';
             fs.unlinkSync(filePath);
-            setTimeout(() => uploadTasks.delete(jobId), 3600000);
+
+            // clean up after completion
+            setTimeout(() => {
+                uploadTasks.delete(jobId);
+                activeSessions.delete(sessionId);
+            }, 3600000);
 
         } catch (error) {
             job.status = 'failed';
@@ -41,7 +47,7 @@ module.exports = createCoreService('api::todo.todo', ({ strapi }) => ({
         }
     },
 
-    // process csv as batchs
+    // process csv as batches
     async processBatch(batch, startIndex, job) {
         await Promise.all(batch.map(async (row, index) => {
             const rowIndex = startIndex + index;
@@ -79,7 +85,7 @@ module.exports = createCoreService('api::todo.todo', ({ strapi }) => ({
     },
 
     // create new upload job tracking object
-    createUploadJob(jobId) {
+    createUploadJob(jobId, sessionId) {
         const job = {
             status: 'parsing',
             total: 0,
@@ -90,11 +96,52 @@ module.exports = createCoreService('api::todo.todo', ({ strapi }) => ({
             startTime: new Date()
         };
         uploadTasks.set(jobId, job);
+
+        // store multiple sessions per IP
+        const ip = sessionId.split('_')[0]; // extract IP part
+        if (!activeSessions.has(sessionId)) {
+            activeSessions.set(sessionId, jobId); // use full sessionId as key
+        }
+
         return job;
     },
+
 
     // get upload job by id
     getUploadJob(jobId) {
         return uploadTasks.get(jobId);
+    },
+
+    // get active session for specific tab
+    getActiveSession(sessionId) {
+        const jobId = activeSessions.get(sessionId);
+        if (!jobId) return null;
+
+        const job = uploadTasks.get(jobId);
+        if (!job) {
+            activeSessions.delete(sessionId); // Clean up stale session
+            return null;
+        }
+
+        // If job is completed or failed, don't return it as active
+        if (job.status === 'completed' || job.status === 'failed') {
+            return null;
+        }
+
+        return { jobId, job };
+    },
+
+    // Clear specific session
+    clearCompletedSession(sessionId) {
+        const jobId = activeSessions.get(sessionId);
+        if (jobId) {
+            const job = uploadTasks.get(jobId);
+            if (job && (job.status === 'completed' || job.status === 'failed')) {
+                activeSessions.delete(sessionId);
+                uploadTasks.delete(jobId);
+                return true;
+            }
+        }
+        return false;
     }
 }));
