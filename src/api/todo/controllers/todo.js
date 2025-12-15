@@ -1,44 +1,32 @@
 'use strict';
 
 const { createCoreController } = require('@strapi/strapi').factories;
-const csv = require('csv-parser');
-const fs = require('fs');
-
-const uploadTasks = new Map();
 
 module.exports = createCoreController('api::todo.todo', ({ strapi }) => ({
 
   // bulk upload
   async bulkUpload(ctx) {
     try {
-      // extract csv file from reqest 
       const files = ctx.request['files'] || {};
 
       if (!files || !files.csvFile) {
         return ctx.badRequest('CSV file is required');
       }
 
-      // create uniqu id
+      // create unique session ID per browser tab
+      const tabId = ctx.request.headers['x-tab-id'] || `tab_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const ip = ctx.request.ip || ctx.request.socket.remoteAddress;
+      const sessionId = `${ip}_${tabId}`;
+
       const jobId = `upload_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       const csvFile = files.csvFile;
 
-      // initialize progress tracking
-      uploadTasks.set(jobId, {
-        status: 'parsing',
-        total: 0,
-        processed: 0,
-        created: 0,
-        errors: 0,
-        errorDetails: [],
-        startTime: new Date()
-      });
-
-      // start async processing
-      // this.processCSVAsync(jobId, csvFile.path);
-      this.processCSVAsync.call(this, jobId, csvFile.path);
+      strapi.service('api::todo.todo').createUploadJob(jobId, sessionId);
+      strapi.service('api::todo.todo').processCSVUpload(jobId, csvFile.path, sessionId);
 
       return ctx.send({
         jobId,
+        sessionId, // return sessionId to frontend
         message: 'Upload started',
         status: 'parsing'
       });
@@ -48,10 +36,10 @@ module.exports = createCoreController('api::todo.todo', ({ strapi }) => ({
     }
   },
 
-  // upload progress
+  // upload status
   async uploadStatus(ctx) {
     const { jobId } = ctx.params;
-    const job = uploadTasks.get(jobId);
+    const job = strapi.service('api::todo.todo').getUploadJob(jobId);
 
     if (!job) {
       return ctx.notFound('Job not found');
@@ -67,76 +55,60 @@ module.exports = createCoreController('api::todo.todo', ({ strapi }) => ({
       processed: job.processed,
       created: job.created,
       errors: job.errors,
-      errorDetails: job.errorDetails.slice(-5), // last 5 error
+      errorDetails: job.errorDetails.slice(-5),
       duration: Date.now() - job.startTime.getTime()
     });
   },
 
-  // csv processing
+  // active session
+  async activeSession(ctx) {
+    const tabId = ctx.request.headers['x-tab-id'];
+    const ip = ctx.request.ip || ctx.request.socket.remoteAddress;
 
-  async processCSVAsync(jobId, filePath) {
-    const job = uploadTasks.get(jobId);
-    const results = [];
-
-    try {
-      // parse csv
-      await new Promise((resolve, reject) => {
-        fs.createReadStream(/** @type {string} */(/** @type {unknown} */ (filePath)))
-          .pipe(csv())
-          .on('data', (row) => results.push(row))
-          .on('end', resolve)
-          .on('error', reject);
+    if (!tabId) {
+      return ctx.send({
+        hasActiveJob: false,
+        jobId: null,
+        progress: null
       });
-
-      // update job with total count
-      job.total = results.length;
-      job.status = 'processing';
-
-      // process rows in batches
-      const batchSize = 10;
-      for (let i = 0; i < results.length; i += batchSize) {
-        const batch = results.slice(i, i + batchSize);
-
-        await Promise.all(batch.map(async (row, index) => {
-          const rowIndex = i + index;
-          try {
-            const todoData = {
-              title: row.title || row.Title,
-              description: row.description || row.Description,
-              status: row.status === 'true' || row.Status === 'true' || true,
-              amount: row.amount ? parseInt(row.amount) : null,
-              email: row.email || row.Email,
-              due_date: row.due_date || row.Due_Date,
-              password: row.password || row.Password || 'default123',
-              publishedAt: new Date(),
-            };
-
-            if (!todoData.title) {
-              job.errors++;
-              job.errorDetails.push(`Row ${rowIndex + 1}: Title is required`);
-              return;
-            }
-
-            await strapi.entityService.create('api::todo.todo', { data: todoData });
-            job.created++;
-          } catch (error) {
-            job.errors++;
-            job.errorDetails.push(`Row ${rowIndex + 1}: ${error.message}`);
-          }
-
-          job.processed++;
-        }));
-      }
-
-      job.status = 'completed';
-      fs.unlinkSync(/** @type {string} */(/** @type {unknown} */ (filePath))); // clean up
-
-      // auto-cleanup after 1 hour
-      setTimeout(() => uploadTasks.delete(jobId), 3600000);
-
-    } catch (error) {
-      job.status = 'failed';
-      job.errorDetails.push(`Processing failed: ${error.message}`);
     }
+
+    const sessionId = `${ip}_${tabId}`;
+    const activeSession = strapi.service('api::todo.todo').getActiveSession(sessionId);
+
+    if (!activeSession) {
+      return ctx.send({
+        hasActiveJob: false,
+        jobId: null,
+        progress: null
+      });
+    }
+
+    const { jobId, job } = activeSession;
+    const progress = job.total > 0 ? Math.round((job.processed / job.total) * 100) : 0;
+
+    return ctx.send({
+      hasActiveJob: true,
+      jobId,
+      progress: {
+        status: job.status,
+        progress,
+        total: job.total,
+        processed: job.processed,
+        created: job.created,
+        errors: job.errors
+      }
+    });
+  },
+
+  // clear session endpoint
+  async clearSession(ctx) {
+    const sessionId = ctx.request.ip || ctx.request.socket.remoteAddress;
+    const cleared = strapi.service('api::todo.todo').clearCompletedSession(sessionId);
+
+    return ctx.send({
+      cleared,
+      message: cleared ? 'Session cleared' : 'No completed session to clear'
+    });
   }
 }));
