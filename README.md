@@ -1,4 +1,5 @@
 
+
 ---
 
 ```md
@@ -61,24 +62,24 @@ csv-strapi-project-backend/
 │   ├── api/
 │   │   └── todo/
 │   │       ├── content-types/todo/
-│   │       │   ├── schema.json        # Todo data model
-│   │       │   └── lifecycles.js      # Entity lifecycle hooks
+│   │       │   ├── schema.json
+│   │       │   └── lifecycles.js
 │   │       ├── controllers/
-│   │       │   └── todo.js            # API request handling
+│   │       │   └── todo.js
 │   │       ├── services/
-│   │       │   └── todo.js            # Business logic & CSV processing
+│   │       │   └── todo.js
 │   │       └── routes/
-│   │           └── todo.js            # API routes
-│   ├── admin/                         # Admin customizations
-│   └── extensions/                    # Plugin extensions
+│   │           └── todo.js
+│   ├── admin/
+│   └── extensions/
 ├── config/
-│   ├── database.js                    # Database configuration
-│   ├── server.js                      # Server settings
-│   ├── middlewares.js                 # Middleware configuration
-│   └── plugins.js                     # Plugin settings
-├── public/uploads/                    # Uploaded files
-├── .tmp/                              # Temp files & SQLite DB
-└── types/generated/                   # TypeScript definitions
+│   ├── database.js
+│   ├── server.js
+│   ├── middlewares.js
+│   └── plugins.js
+├── public/uploads/
+├── .tmp/
+└── types/generated/
 
 ```
 
@@ -86,7 +87,7 @@ csv-strapi-project-backend/
 
 ## 🔄 Workflow & Data Flow
 
-### 1️⃣ CSV Upload Flow
+### CSV Upload Flow
 ```
 
 Client Upload
@@ -103,16 +104,16 @@ Completion
 
 ````
 
-### 2️⃣ Session Management
-- Each browser tab generates a unique session ID
-- IP-based isolation prevents cross-user conflicts
-- Automatic cleanup after 1 hour
+### Session Management
+- Unique session per browser tab
+- IP-based isolation
+- Auto cleanup after 1 hour
 
-### 3️⃣ Batch Processing
-- CSV rows processed in batches
-- Schema-level validation
-- Invalid rows logged with error messages
-- Valid records saved immediately
+### Batch Processing
+- Processed in configurable batches
+- Schema validation per row
+- Errors logged per failed row
+- Valid rows saved immediately
 
 ---
 
@@ -120,20 +121,20 @@ Completion
 
 ### CSV Upload & Tracking
 ```http
-POST   /api/todos/bulk-upload           # Upload CSV file
-GET    /api/todos/upload-status/:jobId  # Upload progress
-GET    /api/todos/active-session        # Current session info
-POST   /api/todos/clear-session         # Clear completed session
+POST   /api/todos/bulk-upload
+GET    /api/todos/upload-status/:jobId
+GET    /api/todos/active-session
+POST   /api/todos/clear-session
 ````
 
 ### Todo CRUD
 
 ```http
-GET    /api/todos                       # List todos
-GET    /api/todos/:id                   # Get todo
-POST   /api/todos                       # Create todo
-PUT    /api/todos/:id                   # Update todo
-DELETE /api/todos/:id                   # Delete todo
+GET    /api/todos
+GET    /api/todos/:id
+POST   /api/todos
+PUT    /api/todos/:id
+DELETE /api/todos/:id
 ```
 
 ---
@@ -184,39 +185,37 @@ Task 2,Review code,false,50,dev@email.com,2024-12-25,secure456
 
 ### Steps
 
-#### 1. Clone Repository
+#### Clone Repository
 
 ```bash
 git clone <repository-url>
 cd csv-strapi-project-backend
 ```
 
-#### 2. Install Dependencies
+#### Install Dependencies
 
 ```bash
 npm install
 ```
 
-#### 3. Environment Setup
+#### Environment Setup
 
 ```bash
 cp .env.example .env
 ```
 
-Configure required environment variables.
-
-#### 4. Database Setup
+#### Database Setup
 
 * SQLite (default): No setup required
 * MySQL / PostgreSQL: Update `config/database.js`
 
-#### 5. Start Development Server
+#### Start Development Server
 
 ```bash
 npm run develop
 ```
 
-#### 6. Access Admin Panel
+#### Admin Panel
 
 ```
 http://localhost:1337/admin
@@ -249,26 +248,14 @@ http://localhost:1337/admin
 
 ### Batch Size
 
-Modify in:
-
-```
-src/api/todo/services/todo.js
-```
-
 ```js
 const batchSize = 10;
 ```
 
-### Database
-
-Update `config/database.js`
+### Database Client
 
 ```js
-// PostgreSQL
-client: 'postgres'
-
-// MySQL
-client: 'mysql'
+client: 'postgres' // or 'mysql'
 ```
 
 ---
@@ -276,24 +263,15 @@ client: 'mysql'
 ## 🖥️ Frontend Integration
 
 Frontend Repository:
-👉 **https://github.com/harikrishnan2193/csv_upload_frontend**
+**[Add your frontend repository link here]**
 
 ---
 
 ## 📄 License
 
-This project is licensed under the **MIT License**.
-See the `LICENSE` file for details.
+MIT License
+
+```
 
 ---
-
-## 🆘 Support
-
-* Create an issue in the repository
-* Refer to Strapi docs: [https://strapi.io/documentation](https://strapi.io/documentation)
-
----
-
-### ❤️ Built with Strapi v4
-
 ```
