@@ -55,8 +55,6 @@ This backend provides a robust solution for importing large datasets via CSV fil
 
 ## 📁 Project Structure
 
-```
-
 csv-strapi-project-backend/
 ├── src/
 │   ├── api/
@@ -80,6 +78,8 @@ csv-strapi-project-backend/
 ├── public/uploads/
 ├── .tmp/
 └── types/generated/
+
+```
 
 ```
 
@@ -263,7 +263,7 @@ client: 'postgres' // or 'mysql'
 ## 🖥️ Frontend Integration
 
 Frontend Repository:
-**[Add your frontend repository link here]**
+**https://github.com/harikrishnan2193/csv_upload_frontend**
 
 ---
 
@@ -271,7 +271,4 @@ Frontend Repository:
 
 MIT License
 
-```
-
----
 ```
